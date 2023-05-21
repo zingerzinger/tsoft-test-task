@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option csharp_namespace = "Proto";
+
+message Request { }
+
+message BodyData {
+    int32 id = 1;
+    float x  = 2;
+    float y  = 3;
+}
+
+service Svc {
+    rpc BodyDataService (Request) returns (stream BodyData);
+}
