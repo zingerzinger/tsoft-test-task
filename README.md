@@ -1,11 +1,11 @@
 # tsoft_Zinger
 multithreading, gRPC, WPF, MVVM
 
-Сборка:
+Сборка: <br />
 
-dotnet build
+dotnet build <br />
 
-Запуск:
+Запуск: <br />
 
-dotnet run Server
-dotnet run Client
+dotnet run Server <br />
+dotnet run Client <br />
