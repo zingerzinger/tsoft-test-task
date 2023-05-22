@@ -26,9 +26,10 @@ namespace Srv
         public const int NUM_BODIES = 64;
         public const int NUM_TASKS  = 4;
 
-        public const int PHYSICS_DT_MSECS = 1000 / 60;
         public const float BODY_SIZE = 20.0f;
-        public const float BODY_VELOCITY = 300.0f / (1000.0f / PHYSICS_DT_MSECS);
+        public const float BODY_VELOCITY = 300.0f;
+
+        public static Stopwatch TIMER = new Stopwatch();
 
         public static List<Body> bodies = new List<Body>();
     }
@@ -42,12 +43,14 @@ namespace Srv
         NUMDIRECTIONS
     }
 
-    struct Body {
+    class Body {
 
         public float x; // top left corner
         public float y;
 
         public MovementDirection direction;
+
+        public double lastUpdateTime = 0.0;
 
         public Body(float x, float y, MovementDirection direction) {
             this.x = x;
@@ -63,20 +66,27 @@ namespace Srv
         Thread thread;
         bool running;
 
-        public Task(int idxStart, int idxFinish, List<Body> bodies) {
+        public Task(List<Body> bodies) {
             running = false;
-            this.thread = new Thread(() => Process(idxStart, idxFinish, bodies, this));
+            this.thread = new Thread(() => Process(bodies, this));
         }
 
-        static void Process(int idxStart, int idxFinish, List<Body> bodies, Task task) {
+        static void Process(List<Body> bodies, Task task) {
 
             while (task.running) {
 
-                Thread.Sleep(COMMON.PHYSICS_DT_MSECS);
+                for (int i = 0; i < bodies.Count; i++) {
 
-                for (int i = idxStart; i <= idxFinish; i++) {
+                    if (!Monitor.TryEnter(bodies[i])) { continue; }
 
                     Body body = bodies[i];
+
+                    double curTime = COMMON.TIMER.Elapsed.TotalSeconds;
+                    double dt = curTime - body.lastUpdateTime;
+
+                    body.lastUpdateTime = curTime;
+
+                    float moveDistance = (float)(COMMON.BODY_VELOCITY * dt);
 
                     bool top    = false;
                     bool right  = false;
@@ -86,8 +96,8 @@ namespace Srv
                     switch (body.direction) {
                         case MovementDirection.RIGHTUP  : {
 
-                            body.x += COMMON.BODY_VELOCITY;
-                            body.y -= COMMON.BODY_VELOCITY;
+                            body.x += moveDistance;
+                            body.y -= moveDistance;
 
                             if (body.x + COMMON.BODY_SIZE > COMMON.WORLD_WIDTH) { right = true; body.x = COMMON.WORLD_WIDTH - COMMON.BODY_SIZE; }
                             if (body.y                    <                  0) { top   = true; body.y = 0; }
@@ -99,8 +109,8 @@ namespace Srv
                         } break;
 
                         case MovementDirection.RIGHTDOWN: {
-                            body.x += COMMON.BODY_VELOCITY;
-                            body.y += COMMON.BODY_VELOCITY;
+                            body.x += moveDistance;
+                            body.y += moveDistance;
 
                             if (body.x + COMMON.BODY_SIZE > COMMON.WORLD_WIDTH ) { right  = true; body.x = COMMON.WORLD_WIDTH  - COMMON.BODY_SIZE; }
                             if (body.y + COMMON.BODY_SIZE > COMMON.WORLD_HEIGHT) { bottom = true; body.y = COMMON.WORLD_HEIGHT - COMMON.BODY_SIZE; }
@@ -111,8 +121,8 @@ namespace Srv
                         } break;
 
                         case MovementDirection.LEFTUP   : {
-                            body.x -= COMMON.BODY_VELOCITY;
-                            body.y -= COMMON.BODY_VELOCITY;
+                            body.x -= moveDistance;
+                            body.y -= moveDistance;
 
                             if (body.x < 0) { left = true; body.x = 0; }
                             if (body.y < 0) { top  = true; body.y = 0; }
@@ -123,8 +133,8 @@ namespace Srv
                         } break;
 
                         case MovementDirection.LEFTDOWN : {
-                            body.x -= COMMON.BODY_VELOCITY;
-                            body.y += COMMON.BODY_VELOCITY;
+                            body.x -= moveDistance;
+                            body.y += moveDistance;
 
                             if (body.x                    < 0                  ) { left   = true; body.x = 0; }
                             if (body.y + COMMON.BODY_SIZE > COMMON.WORLD_HEIGHT) { bottom = true; body.y = COMMON.WORLD_HEIGHT - COMMON.BODY_SIZE; }
@@ -135,7 +145,7 @@ namespace Srv
                         } break;
                     }
 
-                    bodies[i] = body;
+                    Monitor.Exit(bodies[i]);
                 }
             }
         }
@@ -159,18 +169,8 @@ namespace Srv
                 COMMON.bodies.Add(b);
             }
 
-            int bodiesPerTask = COMMON.NUM_BODIES / COMMON.NUM_TASKS;
-            int remainder     = COMMON.NUM_BODIES % COMMON.NUM_TASKS;
-
-            for (int i = 0; i < COMMON.NUM_TASKS; i++) {
-                //Console.WriteLine("{0} : {1}", i * bodiesPerTask, i * bodiesPerTask + bodiesPerTask - 1);
-                Task t = new Task(i * bodiesPerTask, i * bodiesPerTask + bodiesPerTask - 1, COMMON.bodies); tasks.Add(t); t.Start();
-            }
-
-            if (remainder > 0) {
-                //Console.WriteLine("{0} : {1}", bodies.Count - remainder, bodies.Count - 1);
-                Task t = new Task(COMMON.bodies.Count - remainder, COMMON.bodies.Count - 1, COMMON.bodies); tasks.Add(t); t.Start();
-            }
+            COMMON.TIMER.Restart();
+            for (int i = 0; i < COMMON.NUM_TASKS; i++) { Task t = new Task(COMMON.bodies); tasks.Add(t); t.Start(); }
         }
     }
 
