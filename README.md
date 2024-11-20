@@ -1,3 +1,10 @@
+Test task for TSOFT (Saint-Peterburg) May 2023
+-----------------------------------------------
+
+
+
+-----------------------------------------------
+
 # --> tsoft_Zinger
 WIN MSVS 2022 compatible
 
