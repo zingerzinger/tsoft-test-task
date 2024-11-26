@@ -1,4 +1,4 @@
-Test task for TSOFT (Saint-Peterburg) May 2023
+Test task for TSOFT (Saint-Petersburg) May 2023
 -----------------------------------------------
 
 Task: <br />
